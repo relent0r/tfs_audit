@@ -9,16 +9,28 @@ import logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+def perform_release_audit():
+    '''
+    Create a CSV file that contains the release audit
+    '''
+    logger.info('Starting release audit with the following dates, Start Date : {0} , End Date : {1}' .format(config.startTime, config.endTime))
+    tfs_object = tfs_request(config.tfs_endpoint, config.tfs_port, config.tfs_token)
+    response = tfs_object.get_releases(config)
+    generated_data = tfs_object.generate_release_data(response, config)
+    csv_file = create_csv(generated_data, config.csv_file)
+    return csv_file
 
-startTime = '2018-04-01T00:00:00' 
-endTime = '2019-03-31T00:00:00'
-logger.info('Starting release audit with the following dates, Start Date : {0} , End Date : {1}' .format(startTime, endTime))
-tfs_object = tfs_request(config.tfs_endpoint, config.tfs_port, config.tfs_token)
+def identities_audit():
+    '''
+    Create a CSV file with the members of the release administrators groups for production
+    '''
+    logger.info('Starting release administrator audit for the following project_id : {0}' .format(config.tfs_project_id))
+    tfs_object = tfs_request(config.tfs_endpoint, config.tfs_port, config.tfs_token)
+    response = tfs_object.get_project_identities(config)
+    generated_data = tfs_object.generate_identities_data(response, config)
 
-response = tfs_object.get_releases(config.tfs_collection, config.tfs_project_id, startTime, endTime)
+    return response
+
+perform_release_audit()
 
 
-generated_data = tfs_object.generate_release_data(response, config)
-
-create_csv(generated_data, 'test.csv')
-print('pause')

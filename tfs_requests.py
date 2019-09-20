@@ -24,6 +24,14 @@ class tfs_request():
             'Authorization': 'Basic %s' % b64encode(blankuser_token.encode()).decode('ascii')
         }
     
+    def convert_json(self, json_object):
+        try:
+            d = loads(json_object)
+        except AttributeError as e:
+            logger.warn('Exception is : {0}' .format(e))
+            exit()
+        return d
+
     def make_req(self, uri, headers):
 
         try:
@@ -38,13 +46,13 @@ class tfs_request():
         return response
 
 
-    def get_releases(self, collection, project_id, startTime, endTime):
+    def get_releases(self, config):
         continuation_token = ''
         full_list = []
         contID = True
         headers = self.headers
-        uri = self.url + '/' + collection + '/' + project_id + '/_apis/release/deployments?minStartedTime='+ startTime + '&maxStartedTime=' \
-            + endTime +'&query=ascending&api-version=' + self.apiversion
+        uri = self.url + '/' + config.tfs_collection + '/' + config.tfs_project_id + '/_apis/release/deployments?minStartedTime='+ config.startTime + '&maxStartedTime=' \
+            + config.endTime +'&query=ascending&api-version=' + self.apiversion
         
         initial_request = self.make_req(uri, headers)
         continuation_token = initial_request.headers['x-ms-continuationtoken']
@@ -54,8 +62,8 @@ class tfs_request():
                 if continuation_token:
                     contID = True
                     logger.debug('Continuation ID is true')
-                    uri_continuation = self.url + '/' + collection + '/' + project_id + '/_apis/release/deployments?minStartedTime='+ startTime + '&maxStartedTime=' \
-                        + endTime +'&query=ascending' + '&continuationToken=' + continuation_token + '&api-version=' + self.apiversion
+                    uri_continuation = self.url + '/' + config.tfs_collection + '/' + config.tfs_project_id + '/_apis/release/deployments?minStartedTime='+ config.startTime + '&maxStartedTime=' \
+                        + config.endTime +'&query=ascending' + '&continuationToken=' + continuation_token + '&api-version=' + self.apiversion
                     continuation_request = self.make_req(uri_continuation, headers)
                     full_list.append(continuation_request.text)
                     continuation_token = continuation_request.headers['x-ms-continuationtoken']
@@ -67,15 +75,9 @@ class tfs_request():
 
     def generate_release_data(self, response, config):
         release_list = []
-        def convert_json(json_object):
-            try:
-                d = loads(json_object)
-            except AttributeError as e:
-                logger.warn('Exception is : {0}' .format(e))
-                exit()
-            return d
+        
         for item in response:
-            converted_releases = convert_json(item)['value'] 
+            converted_releases = self.convert_json(item)['value'] 
             #lesson to learn, don't assign a name 'json', it will break after the first iteration. You are changing
             #the module reference to a variable reference
             for json_object in converted_releases:
@@ -94,3 +96,29 @@ class tfs_request():
                         logger.debug('{0} not in environment list' .format(json_object['releaseEnvironment']['name']))
                         pass
         return release_list
+
+    def get_project_identities(self, config):
+
+        headers = self.headers
+        uri = self.url + '/' + config.tfs_collection + '/_apis/identities?scopeId='+ config.tfs_project_id +'&api-version=' + self.apiversion
+        identities = self.make_req(uri, headers)       
+
+        return identities.text
+
+    def generate_identities_data(self, response, config):
+
+        converted_identities = self.convert_json(response)['value']
+        for json_object in converted_identities:
+            for env in config.groups:
+                group_text = json_object['providerDisplayName'].split('\\', 1)[-1]
+                if group_text == env:
+                    logger.debug(json_object['providerDisplayName'])
+                    group_members = json_object['memberIds']
+                    for members in group_members:
+                        uri = self.url + '/' + config.tfs_collection + '/_apis/identities?scopeId='+ config.tfs_project_id +'&api-version=' + self.apiversion
+                        logger.debug(members['DisplayName'])
+
+
+        
+        return 'stuff'
+

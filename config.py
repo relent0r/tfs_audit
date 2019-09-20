@@ -7,4 +7,7 @@ environments = [
     'Prod01',
     'Prod02'
 ]
-
+groups = [
+    'Release Administrators',
+    'Release Administrators - Prod'
+]
